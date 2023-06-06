@@ -1,0 +1,28 @@
+[build-system]
+requires = [ "setuptools>=64.0.0" ]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ipv6thing"
+version = "1.0.0"
+requires-python = ">=3.11"
+dependencies = [
+]
+
+[tool.setuptools]
+packages = ["ipv6thing"]
+
+[tool.setuptools.package-data]
+ipv6thing = [
+    "py.typed",
+    "**/*.pyi",
+]
+
+[tool.mypy]
+disallow_untyped_defs = true
+disallow_any_unimported = true
+no_implicit_optional = true
+check_untyped_defs = true
+warn_return_any = true
+warn_unused_ignores = true
+show_error_codes = true
