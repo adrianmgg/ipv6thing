@@ -1,0 +1,34 @@
+from unittest import TestCase
+
+class IPV6ParseTests(TestCase):
+    def test_valid_addresses(self) -> None:
+        for addr, should_be in [
+            ('ABCD:EF01:2345:6789:ABCD:EF01:2345:6789', 0xABCD_EF01_2345_6789_ABCD_EF01_2345_6789),
+            ('2001:DB8:0:0:8:800:200C:417A', 0x2001_0DB8_0000_0000_0008_0800_200C_417A),
+            ('2001:DB8::8:800:200C:417A', 0x2001_0DB8_0000_0000_0008_0800_200C_417A),
+            ('FF01::101', 0xFF01_0000_0000_0000_0000_0000_0000_0101),
+            ('::1', 0x0000_0000_0000_0000_0000_0000_0000_0001),
+            ('::', 0x0000_0000_0000_0000_0000_0000_0000_0000),
+            ('1::', 0x0001_0000_0000_0000_0000_0000_0000_0000),
+            ('1000::', 0x1000_0000_0000_0000_0000_0000_0000_0000),
+        ]:
+            from ipv6thing import _parse_address
+            with self.subTest(addr):
+                was = _parse_address(addr)
+                self.assertIsInstance(was, int)
+                self.assertEqual(was, should_be)
+
+    def test_invalid_addresses(self) -> None:
+        for addr, message in [
+            ('a::b::c', "address can only have one '::'"),
+            ('abcde::', 'hextet must be 4 digits or less'),
+            ('01234::', 'hextet must be 4 digits or less'),
+            ('01234::', 'hextet must be 4 digits or less'),
+        ]:
+            from ipv6thing import _parse_address
+            with self.subTest(addr):
+                with self.assertRaises(ValueError) as exc_cm:
+                    _parse_address(addr)
+                exc = exc_cm.exception
+                if message is not None:
+                    self.assertEqual(str(exc), message)
