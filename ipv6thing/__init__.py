@@ -6,6 +6,11 @@ import typing
 from typing import Iterator, Literal, assert_never, overload, Union
 from collections.abc import Iterable, Iterator
 
+class _DEFAULT_T:
+    """class for 'default argument' sentinel"""
+_DEFAULT = _DEFAULT_T()
+"""sentinel used for default argument value"""
+
 _ADDR_TOKEN_PATTERN = re.compile(r"""
 (?P<num>[0-9a-zA-Z]+)
 |(?P<skip>::)
@@ -130,12 +135,12 @@ class Network:
     _prefix_len: int
 
     @overload
-    def __init__(self, addr: str, /) -> None: ...
+    def __init__(self, addr: str) -> None: ...
     @overload
-    def __init__(self, addr: str | int | Address, prefix_len: int, /) -> None: ...
-    def __init__(self, addr: str | int | Address, prefix_len: int | None = None, /) -> None:
+    def __init__(self, addr: str | int | Address, prefix_len: int) -> None: ...
+    def __init__(self, addr: str | int | Address, prefix_len: int | _DEFAULT_T = _DEFAULT) -> None:
         match prefix_len:
-            case None:
+            case _DEFAULT_T():
                 match addr:
                     case str() as s:
                         a, self._prefix_len = _parse_address(s, allow_prefix=True, require_prefix=True)
@@ -185,7 +190,7 @@ class Network:
             case _ as unreachable:
                 assert_never(unreachable)
 
-class _NetworkIterable(Iterable):
+class _NetworkIterable(Iterable[Address]):
     __slots__ = '_net', '_slice'
     _net: Network
     _slice: slice
