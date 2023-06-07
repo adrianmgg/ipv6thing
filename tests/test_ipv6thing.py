@@ -1,6 +1,7 @@
 from unittest import TestCase
+from ipv6thing import Address
 
-class IPV6ParseTests(TestCase):
+class AddressTests(TestCase):
     def test_valid_addresses(self) -> None:
         for addr, should_be in [
             ('ABCD:EF01:2345:6789:ABCD:EF01:2345:6789', 0xABCD_EF01_2345_6789_ABCD_EF01_2345_6789),
@@ -12,23 +13,32 @@ class IPV6ParseTests(TestCase):
             ('1::', 0x0001_0000_0000_0000_0000_0000_0000_0000),
             ('1000::', 0x1000_0000_0000_0000_0000_0000_0000_0000),
         ]:
-            from ipv6thing import _parse_address
             with self.subTest(addr):
-                was = _parse_address(addr)
-                self.assertIsInstance(was, int)
-                self.assertEqual(was, should_be)
+                self.assertEqual(int(Address(addr)), should_be)
 
     def test_invalid_addresses(self) -> None:
-        for addr, message in [
-            ('a::b::c', "address can only have one '::'"),
-            ('abcde::', 'hextet must be 4 digits or less'),
-            ('01234::', 'hextet must be 4 digits or less'),
-            ('01234::', 'hextet must be 4 digits or less'),
+        for addr, exc_type, message in [
+            ('a::b::c', ValueError, "address can only have one '::'"),
+            ('abcde::', ValueError, 'hextet must be 4 digits or less'),
+            ('01234::', ValueError, 'hextet must be 4 digits or less'),
         ]:
-            from ipv6thing import _parse_address
             with self.subTest(addr):
-                with self.assertRaises(ValueError) as exc_cm:
-                    _parse_address(addr)
+                with self.assertRaises(exc_type) as exc_cm:
+                    Address(addr)
                 exc = exc_cm.exception
                 if message is not None:
                     self.assertEqual(str(exc), message)
+
+    def test_address_int_arithmetic(self) -> None:
+        from operator import add, sub
+        for lhs, op, rhs, should_be in [
+            (Address('2001:db8::4'), add, 1, Address('2001:db8::5')),
+            (Address('2001:db8::5'), add, -1, Address('2001:db8::4')),
+            (1, add, Address('2001:db8::4'), Address('2001:db8::5')),
+            (-1, add, Address('2001:db8::5'), Address('2001:db8::4')),
+            (Address('2001:db8::4'), sub, -1, Address('2001:db8::5')),
+            (Address('2001:db8::5'), sub, 1, Address('2001:db8::4')),
+        ]:
+            with self.subTest(lhs=lhs, rhs=rhs, op=op.__name__):
+                self.assertEqual(op(lhs, rhs), should_be)
+        # TODO check the ones that should fail too

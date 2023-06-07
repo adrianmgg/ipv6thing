@@ -100,6 +100,15 @@ class Address:
     def __radd__(self, other: int, /) -> 'Address':
         return self + other
 
+    def __sub__(self, other: int, /) -> 'Address':
+        match other:
+            case int():
+                return Address(self._addr - other)
+            case _ as unreachable:
+                assert_never(unreachable)
+
+    # (__rsub__ intentionally not implemented)
+
     def __int__(self, /) -> int:
         return self._addr
 
