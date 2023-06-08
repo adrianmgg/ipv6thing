@@ -65,3 +65,30 @@ class AddressTests(TestCase):
                 net = Network(*args)
                 self.assertEqual(net.base_address, addr)
                 self.assertEqual(net.prefix_len, prefix_len)
+
+    def test_address_format(self) -> None:
+        for addr, format_spec, should_be in [
+            ('::',  's',  '::'),
+            ('::',  'l',  '0000:0000:0000:0000:0000:0000:0000:0000'),
+            ('::',  'pc', '::'),
+            ('::',  'tc', '::'),
+            ('::',  'pe', '0000:0000:0000:0000:0000:0000:0000:0000'),
+            ('::',  'te', '0:0:0:0:0:0:0:0'),
+
+            ('1::', 's',  '1::'),
+            ('1::', 'l',  '0001:0000:0000:0000:0000:0000:0000:0000'),
+            ('1::', 'pc', '0001::'),
+            ('1::', 'tc', '1::'),
+            ('1::', 'pe', '0001:0000:0000:0000:0000:0000:0000:0000'),
+            ('1::', 'te', '1:0:0:0:0:0:0:0'),
+
+            ('::1',  's',  '::1'),
+            ('::1',  'l',  '0000:0000:0000:0000:0000:0000:0000:0001'),
+            ('::1',  'pc', '::0001'),
+            ('::1',  'tc', '::1'),
+            ('::1',  'pe', '0000:0000:0000:0000:0000:0000:0000:0001'),
+            ('::1',  'te', '0:0:0:0:0:0:0:1'),
+        ]:
+            with self.subTest(addr=addr, format_spec=format_spec):
+                formatted = f'{{:{format_spec}}}'.format(Address(addr))
+                self.assertEqual(formatted, should_be)

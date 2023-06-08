@@ -5,6 +5,7 @@ import re
 import typing
 from typing import Iterator, Literal, assert_never, overload, Union
 from collections.abc import Iterable, Iterator
+import itertools
 
 class _DEFAULT_T:
     """class for 'default argument' sentinel"""
@@ -175,20 +176,55 @@ class Address:
     def __int__(self, /) -> int:
         return self._addr
 
-    def str_long(self, /) -> str:
-        return ':'.join(f'{(self._addr >> ofs) & 0xFFFF:04x}' for ofs in range(7*16, -1, -16))
-
-    def str_short(self, /) -> str:
-        return self.str_long()  # TODO
-
     def __str__(self, /) -> str:
-        return self.str_short()
+        return f'{self:s}'
 
     def __repr__(self, /) -> str:
-        return f'Address({self.str_short()!r})'
+        return f'Address({self:s})'
 
     def __format__(self, format_spec: str, /) -> str:
-        return f'{format_spec=}'
+        compress, pad = _parse_format_spec(format_spec)
+        hextets = list((self._addr >> ofs) & 0xFFFF for ofs in range(7*16, -1, -16))
+        compress_section: tuple[int, int] = -1, -1
+        if compress == _CompressMode.COMPRESS:
+            longest_section: tuple[int, int] | None = None
+            longest_section_len: int = -99
+            cur_section_start: int = 0
+            cur_section_end: int = 0
+            prev_hextet: int = -1
+            first_section = True
+            for idx, hextet in enumerate(itertools.chain(hextets, [-1])):
+                if hextet == prev_hextet or first_section and hextet == hextets[0]:
+                    cur_section_end = idx
+                else:
+                    section_len = cur_section_end - cur_section_start
+                    if prev_hextet == 0 and section_len > longest_section_len:
+                        longest_section = cur_section_start, cur_section_end
+                        longest_section_len = section_len
+                    cur_section_start = idx
+                    first_section = False
+                prev_hextet = hextet
+            if longest_section is not None:
+                compress_section = longest_section
+        ret = ''
+        hextet_before = False
+        for idx, hextet in enumerate(hextets):
+            if compress_section[0] <= idx <= compress_section[1]:
+                hextet_before = False
+                if compress_section[0] == idx:
+                    ret += '::'
+            else:
+                if hextet_before:
+                    ret += ':'
+                match pad:
+                    case _PadMode.PAD:
+                        ret += f'{hextet:04x}'
+                    case _PadMode.TRIM:
+                        ret += f'{hextet:x}'
+                    case _ as unreachable:
+                        assert_never(unreachable)
+                hextet_before = True
+        return ret
 
 class Network:
     __slots__ = '_addr', '_prefix_len'
