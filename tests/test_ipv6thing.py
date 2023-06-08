@@ -1,6 +1,5 @@
 from unittest import TestCase
-from ipv6thing import Address
-from contextlib import contextmanager
+from ipv6thing import Address, Network
 
 class AddressTests(TestCase):
     def test_valid_addresses(self) -> None:
@@ -54,3 +53,15 @@ class AddressTests(TestCase):
             with self.subTest(op=op.__name__, lhs=lhs, rhs=rhs):
                 with self.assertRaisesRegex(exc_type, exc_msg):
                     op(lhs, rhs)
+
+    def test_network_parsing(self) -> None:
+        for args, addr, prefix_len in [
+            ([Address('2001:DB8::'), 32],                     Address('2001:DB8'), 32),
+            ([0x2001_0db8_0000_0000_0000_0000_0000_0000, 32], Address('2001:DB8'), 32),
+            (['2001:DB8::', 32],                              Address('2001:DB8'), 32),
+            (['2001:DB8::/32'],                               Address('2001:DB8'), 32),
+        ]:
+            with self.subTest(args):
+                net = Network(*args)
+                self.assertEqual(net.base_address, addr)
+                self.assertEqual(net.prefix_len, prefix_len)

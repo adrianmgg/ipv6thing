@@ -12,10 +12,11 @@ _DEFAULT = _DEFAULT_T()
 """sentinel used for default argument value"""
 
 _ADDR_TOKEN_PATTERN = re.compile(r"""
-(?P<num>[0-9a-zA-Z]+)
-|(?P<skip>::)
-|(?P<sep>:)
-|(?:/(?P<prefixlen>[0-9]+))
+(?P<num>[0-9a-zA-Z]+)         # one hextet in the address. the token will match 5+ characters too, max length is checked during parsing
+|(?P<skip>::)                 # '::' skip consecutive blocks of zeros
+|(?P<sep>:)                   # ':' separator between hextets. needs to be after the `skip` group to parse properly
+|(?:/(?P<prefixlen>[0-9]+))   # a '/123' prefix length
+|(?P<unknown>.{1,})           # catch anything that didn't match the others so we put it in our error message
 """, re.VERBOSE)
 
 @enum_unique
@@ -24,6 +25,7 @@ class _AddrToken(Enum):
     SKIP = 'skip'
     SEP = 'sep'
     PREFIX_LEN = 'prefixlen'
+    UNKNOWN = 'unknown'
 assert set(a.value for a in _AddrToken) == set(_ADDR_TOKEN_PATTERN.groupindex.keys())
 
 @overload
@@ -44,6 +46,8 @@ def _parse_address(addr: str, /, *, allow_prefix: bool = False, require_prefix: 
     while (match := _ADDR_TOKEN_PATTERN.match(addr, str_pos)) is not None:
         token = _AddrToken(match.lastgroup)
         lexeme_text: str = match.group(token.value)  # TODO give this var a better name
+        if prefix_len is not None:
+            raise ValueError('nothing is allowed after the prefix length of the address')
         match token:
             case _AddrToken.NUM:
                 # (since the num group can be any length, we don't need to worry about checking for two nums in a row with no separator)
@@ -58,12 +62,14 @@ def _parse_address(addr: str, /, *, allow_prefix: bool = False, require_prefix: 
                 cur_part += 1
             case _AddrToken.SKIP:
                 if did_skip:
-                    raise ValueError("address can only have one '::'")  # todo show offending token in context
+                    raise ValueError("address can only have one '::'")  # TODO show offending token in context
                 did_skip = True
             case _AddrToken.SEP:
                 pass
             case _AddrToken.PREFIX_LEN:
-                raise NotImplementedError()  # TODO
+                prefix_len = int(lexeme_text, base=10)
+            case _AddrToken.UNKNOWN:
+                raise ValueError(f'address parser unable to parse {lexeme_text!r}')  # TODO give this a better message
             case _ as unreachable:
                 assert_never(unreachable)
         str_pos = match.end()
