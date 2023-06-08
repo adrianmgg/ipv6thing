@@ -1,5 +1,6 @@
 from unittest import TestCase
 from ipv6thing import Address
+from contextlib import contextmanager
 
 class AddressTests(TestCase):
     def test_valid_addresses(self) -> None:
@@ -29,16 +30,27 @@ class AddressTests(TestCase):
                 if message is not None:
                     self.assertEqual(str(exc), message)
 
-    def test_address_int_arithmetic(self) -> None:
+    def test_address_int_arithmetic_valid(self) -> None:
         from operator import add, sub
         for lhs, op, rhs, should_be in [
-            (Address('2001:db8::4'), add, 1, Address('2001:db8::5')),
+            (Address('2001:db8::4'), add,  1, Address('2001:db8::5')),
             (Address('2001:db8::5'), add, -1, Address('2001:db8::4')),
-            (1, add, Address('2001:db8::4'), Address('2001:db8::5')),
-            (-1, add, Address('2001:db8::5'), Address('2001:db8::4')),
             (Address('2001:db8::4'), sub, -1, Address('2001:db8::5')),
-            (Address('2001:db8::5'), sub, 1, Address('2001:db8::4')),
+            (Address('2001:db8::5'), sub,  1, Address('2001:db8::4')),
         ]:
-            with self.subTest(lhs=lhs, rhs=rhs, op=op.__name__):
+            with self.subTest(op=op.__name__, lhs=lhs, rhs=rhs):
                 self.assertEqual(op(lhs, rhs), should_be)
-        # TODO check the ones that should fail too
+
+    def test_address_int_arithmetic_invalid(self) -> None:
+        from operator import add, sub
+        for lhs, op, rhs, exc_type, exc_msg in [
+            (0, add, Address('2001:db8::4'), TypeError, r'^unsupported operand type\(s\)'),
+            (0, sub, Address('2001:db8::5'), TypeError, r'^unsupported operand type\(s\)'),
+            (Address('ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff'), add,  1, ValueError, r'^address out of range$'),
+            (Address('ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff'), sub, -1, ValueError, r'^address out of range$'),
+            (Address('::'),                                      add, -1, ValueError, r'^address out of range$'),
+            (Address('::'),                                      sub,  1, ValueError, r'^address out of range$'),
+        ]:
+            with self.subTest(op=op.__name__, lhs=lhs, rhs=rhs):
+                with self.assertRaisesRegex(exc_type, exc_msg):
+                    op(lhs, rhs)

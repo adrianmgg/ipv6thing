@@ -74,6 +74,9 @@ def _parse_address(addr: str, /, *, allow_prefix: bool = False, require_prefix: 
     else:
         return lo | hi
 
+_MIN_IPV6_ADDR_VAL = 0x0000_0000_0000_0000_0000_0000_0000_0000
+_MAX_IPV6_ADDR_VAL = 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF
+
 class Address:
     __slots__ = '_addr',
     _addr: int
@@ -87,6 +90,8 @@ class Address:
                 self._addr = _parse_address(addr, allow_prefix=False)
             case _ as unreachable:
                 assert_never(unreachable)
+        if not _MIN_IPV6_ADDR_VAL <= self._addr <= _MAX_IPV6_ADDR_VAL:
+            raise ValueError('address out of range')
 
     def __eq__(self, other: object, /) -> bool:
         match other:
@@ -102,8 +107,7 @@ class Address:
             case _ as unreachable:
                 assert_never(unreachable)
 
-    def __radd__(self, other: int, /) -> 'Address':
-        return self + other
+    # (__radd__ intentionally not implemented)
 
     def __sub__(self, other: int, /) -> 'Address':
         match other:
