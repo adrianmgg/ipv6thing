@@ -226,7 +226,13 @@ class Address:
                 hextet_before = True
         return ret
 
-class Network:
+    def __and__(self, rhs: int, /) -> 'Address':
+        return Address(self._addr & rhs)
+
+    def __or__(self, rhs: int, /) -> 'Address':
+        return Address(self._addr | rhs)
+
+class Network(Iterable[Address]):
     __slots__ = '_addr', '_prefix_len'
     _addr: Address
     _prefix_len: int
@@ -287,6 +293,17 @@ class Network:
             case _ as unreachable:
                 assert_never(unreachable)
 
+    def __contains__(self, item: Address, /) -> bool:
+        # TODO should we also support `network in other_network`?
+        match item:
+            case Address():
+                return (item & self.prefix_mask) == self.base_address
+            case _:  # unreachable if you actually follow the signature, but this is part of the public api so at runtime who knows
+                return False
+
+    def __iter__(self) -> Iterator[Address]:
+        return _NetworkIterator(int(self.base_address), int(self.base_address) + self._max_idx + 1, 1)
+
 class _NetworkIterable(Iterable[Address]):
     __slots__ = '_net', '_slice'
     _net: Network
@@ -312,7 +329,9 @@ class _NetworkIterable(Iterable[Address]):
             case Address():
                 stop = int(self._slice.stop)
             case None:
-                stop = int(self._net.base_address) + self._net._max_idx
+                # (+1 since stop is AFTER the end)
+                # TODO is +1 always enough or does it need to be based on the step?
+                stop = int(self._net.base_address) + self._net._max_idx + 1
             case _ as unexpected:
                 raise TypeError(unexpected)
         match self._slice.step:
