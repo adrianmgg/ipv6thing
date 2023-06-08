@@ -1,6 +1,6 @@
 __all__ = ['Address', 'Network']
 
-from enum import Enum, unique as enum_unique
+from enum import Enum, unique as enum_unique, auto as enum_auto
 import re
 import typing
 from typing import Iterator, Literal, assert_never, overload, Union
@@ -83,6 +83,54 @@ def _parse_address(addr: str, /, *, allow_prefix: bool = False, require_prefix: 
 _MIN_IPV6_ADDR_VAL = 0x0000_0000_0000_0000_0000_0000_0000_0000
 _MAX_IPV6_ADDR_VAL = 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF
 
+class _CompressMode(Enum):
+    COMPRESS = enum_auto()
+    EXPAND   = enum_auto()
+
+class _PadMode(Enum):
+    PAD      = enum_auto()
+    TRIM     = enum_auto()
+
+class _AddressFormatSpecOption(Enum):
+    compress: _CompressMode | None
+    pad: _PadMode | None
+
+    def __new__(cls, char: str, compress_mode: _CompressMode | None, pad_mode: _PadMode | None) -> '_AddressFormatSpecOption':
+        obj = object.__new__(cls)
+        obj._value_ = char
+        obj.compress = compress_mode
+        obj.pad = pad_mode
+        return obj
+
+    SHORT_ADDRESS     = 's', _CompressMode.COMPRESS, _PadMode.TRIM
+    """shorthand for COMPRESS_ZEROS and TRIM_HEXTETS"""
+    LONG_ADDRESS      = 'l', _CompressMode.EXPAND, _PadMode.PAD
+    """shorthand for NO_COMPRESS_ZEROS and PAD_HEXTETS"""
+    COMPRESS_ZEROS    = 'c', _CompressMode.COMPRESS, None
+    """compress zeros with '::' """
+    EXPAND_ZEROS      = 'e', _CompressMode.EXPAND, None
+    """don't compress zeros"""
+    PAD_HEXTETS       = 'p', None, _PadMode.PAD
+    """pad all hextets to 4 digits"""
+    TRIM_HEXTETS      = 't', None, _PadMode.TRIM
+    """trim leading zeros from hextets"""
+
+def _parse_format_spec(spec: str, /, *, default_compress: _CompressMode = _CompressMode.COMPRESS, default_pad: _PadMode = _PadMode.TRIM) -> tuple[_CompressMode, _PadMode]:
+    # TODO raise error if was already set?
+    compress: _CompressMode | None = None
+    pad: _PadMode | None = None
+    for char in spec:
+        opt: _AddressFormatSpecOption = _AddressFormatSpecOption(char)  # type: ignore  # (it's actually a __call__ to the metaclass or whatever but mypy thinks it's calling __new__)
+        if opt.compress is not None:
+            compress = opt.compress
+        if opt.pad is not None:
+            pad = opt.pad
+    if compress is None:
+        compress = default_compress
+    if pad is None:
+        pad = default_pad
+    return compress, pad
+
 class Address:
     __slots__ = '_addr',
     _addr: int
@@ -138,6 +186,9 @@ class Address:
 
     def __repr__(self, /) -> str:
         return f'Address({self.str_short()!r})'
+
+    def __format__(self, format_spec: str, /) -> str:
+        return f'{format_spec=}'
 
 class Network:
     __slots__ = '_addr', '_prefix_len'
