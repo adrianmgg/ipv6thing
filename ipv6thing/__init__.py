@@ -286,8 +286,8 @@ class Network:
     def __getitem__(self, k: int | slice, /) -> Union[Address, '_NetworkIterable']:
         match k:
             case int():
-                if 0 < k < self._max_idx:
-                    raise IndexError()
+                # if 0 < k < self._max_idx:
+                #     raise IndexError()
                 return self.base_address + k
             case slice():
                 return _NetworkIterable(self, k)
@@ -309,6 +309,15 @@ class Network:
     @property
     def num_addresses(self, /) -> int:
         return 1 << (128 - self.prefix_len)
+
+    def __format__(self, spec: str, /) -> str:
+        return f'{self.base_address.__format__(spec)}/{self.prefix_len}'
+
+    def __str__(self, /) -> str:
+        return f'{self:s}'
+
+    def __repr__(self, /) -> str:
+        return f'Network({self:s})'
 
     # def __len__(self, /) -> int:
     #     warnings.warn('using len() on a network is not suggested as it will cause an OverflowError if the value is larger than sys.maxsize. use the ".length" property instead')
