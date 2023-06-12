@@ -1,6 +1,5 @@
 
-this was written as a project for a university class, and is a little rough around the edges.
-if you're looking for a library that does something similar, check out python's built in [ipaddress](https://docs.python.org/3/library/ipaddress.html) module
+# this was written as a project for a university class, and is a little rough around the edges. if you're looking for a library that does something similar, check out python's built in [ipaddress](https://docs.python.org/3/library/ipaddress.html) module instead
 
 # setup
 requires python >= 3.11. install via:
