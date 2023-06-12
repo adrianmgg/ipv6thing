@@ -6,6 +6,7 @@ import typing
 from typing import Iterator, Literal, assert_never, overload, Union
 from collections.abc import Iterable, Iterator
 import itertools
+import warnings
 
 class _DEFAULT_T:
     """class for 'default argument' sentinel"""
@@ -232,7 +233,7 @@ class Address:
     def __or__(self, rhs: int, /) -> 'Address':
         return Address(self._addr | rhs)
 
-class Network(Iterable[Address]):
+class Network:
     __slots__ = '_addr', '_prefix_len'
     _addr: Address
     _prefix_len: int
@@ -293,6 +294,7 @@ class Network(Iterable[Address]):
             case _ as unreachable:
                 assert_never(unreachable)
 
+    # TODO also accept anything that Address ctor will take
     def __contains__(self, item: Address, /) -> bool:
         # TODO should we also support `network in other_network`?
         match item:
@@ -301,8 +303,16 @@ class Network(Iterable[Address]):
             case _:  # unreachable if you actually follow the signature, but this is part of the public api so at runtime who knows
                 return False
 
-    def __iter__(self) -> Iterator[Address]:
+    def __iter__(self, /) -> Iterator[Address]:
         return _NetworkIterator(int(self.base_address), int(self.base_address) + self._max_idx + 1, 1)
+
+    @property
+    def num_addresses(self, /) -> int:
+        return 1 << (128 - self.prefix_len)
+
+    # def __len__(self, /) -> int:
+    #     warnings.warn('using len() on a network is not suggested as it will cause an OverflowError if the value is larger than sys.maxsize. use the ".length" property instead')
+    #     return self.num_addresses
 
 class _NetworkIterable(Iterable[Address]):
     __slots__ = '_net', '_slice'
