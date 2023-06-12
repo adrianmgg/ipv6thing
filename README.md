@@ -86,9 +86,9 @@ Address(2001:db8::75b:cd15)
 '2001:0db8::0abc'
 >>> f'{a:tc}'  # t = trim hextets, c = compress zeroes
 '2001:db8::abc'
->>> f'{a:te}'  # p = pad hextets, e = expand zeros
+>>> f'{a:pe}'  # p = pad hextets, e = expand zeros
 '2001:0db8:0000:0000:0000:0000:0000:0abc'
->>> f'{a:pe}'  # t = trim hextets, e = expand zeros
+>>> f'{a:te}'  # t = trim hextets, e = expand zeros
 '2001:db8:0:0:0:0:0:abc'
 >>> # these all work anywhere else format specifiers are accepted
 >>> '{:l}'.format(a)
